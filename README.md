@@ -12,7 +12,7 @@ Traditional PM workflows create a disconnect between clients and the development
 
 ## Solution
 
-Together with Chris Yoo, we built OnCall which is an AI forward-deployed engineer that helps non-technical PMs clarify technical requirements with clients in real time. By the end of the call, you have outlined tickets and actual mockups ready to hand off to developers. It challenges the traditional PM workflow by putting the client directly in the feedback loop from the start.
+Together with @PenTest-duck, we built OnCall which is an AI forward-deployed engineer that helps non-technical PMs clarify technical requirements with clients in real time. By the end of the call, you have outlined tickets and actual mockups ready to hand off to developers. It challenges the traditional PM workflow by putting the client directly in the feedback loop from the start.
 
 ## Features
 
