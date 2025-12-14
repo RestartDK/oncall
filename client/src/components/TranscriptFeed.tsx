@@ -70,7 +70,7 @@ export function TranscriptFeed({
             {/* Show pending/tentative text */}
             {pendingText && (
               <div className="flex items-start gap-3 opacity-50">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                   <User className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
@@ -101,7 +101,7 @@ function TranscriptMessage({ event, intent }: TranscriptMessageProps) {
       }`}
     >
       <div
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+        className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
           isUser ? 'bg-primary/10' : 'bg-muted'
         }`}
       >
@@ -128,7 +128,7 @@ function TranscriptMessage({ event, intent }: TranscriptMessageProps) {
           )}
         </div>
 
-        <p className="text-sm break-words">{event.text}</p>
+        <p className="text-sm wrap-break-word">{event.text}</p>
 
         {hasIntent && intent && (
           <div className="mt-2 p-2 rounded bg-muted/50 text-xs">
