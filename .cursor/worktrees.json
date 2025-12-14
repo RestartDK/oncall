@@ -1,0 +1,7 @@
+{
+  "setup-worktree": [
+    "cd client && bun install",
+    "cd server && bun install",
+    "cp $ROOT_WORKTREE_PATH/server/.env server/.env"
+  ]
+}
