@@ -74,7 +74,9 @@ sequenceDiagram
   - calls ElevenLabs ConvAI `get-signed-url` using `xi-api-key` and `agent_id`
   - returns `{ signedUrl }` to the client (do not expose the API key)
 - **Client**: keep using `@elevenlabs/react` `useConversation()` in [`client/src/hooks/useConversationTranscription.ts`](client/src/hooks/useConversationTranscription.ts), but:
-  - treat `user_transcript` (and/or its nested transcription event) as the source of truth for *final* transcript chunks
+  - treat `user_transcript` (and/or its nested transcription event) as the source of truth for *committed/final* transcript chunks — do **not** look for a `final` boolean/property on the payload; determine “final vs partial” from the event type / SDK semantics
+  - trigger intent detection for **every committed user transcript message** (i.e., each time a new final chunk arrives, call `POST /api/intent` with that text)
+    - it’s OK to debounce bursty updates, but the end behavior must still be: **1 intent call per user message**
   - optionally surface partial/pending transcript if available; otherwise keep showing “pending text” based on what the SDK provides
   - remove `sendContextualUpdate` and any reliance on agent tools/webhooks
 
@@ -84,7 +86,7 @@ sequenceDiagram
   - Ensure [`server/src/index.ts`](server/src/index.ts) exposes signed-url under `/signed-url` so it’s reachable as `/api/signed-url` via Vite proxy.
   - Keep [`server/src/services/elevenlabs.ts`](server/src/services/elevenlabs.ts) as the signed-url wrapper.
 - Client:
-  - Update types in [`client/src/types/index.ts`](client/src/types/index.ts): remove `agent` transcript type (or replace with `system`) since we no longer receive `agent_response`.
+  - Update types in [`client/src/types/index.ts`](client/src/types/index.ts): stop assuming a `final` field exists on messages; derive “final vs partial” from the SDK event type / semantics. Treat `agent_response` as optional UI only (do not rely on it for app logic).
   - Update UI text in [`client/src/App.tsx`](client/src/App.tsx) header currently showing “ElevenLabs Agents”.
 
 ### 2) Keep intent + mockup pipeline (already backend-owned)
@@ -104,6 +106,54 @@ sequenceDiagram
 - Update client export logic:
   - Replace `sendContextualUpdate(...)` usage in [`client/src/App.tsx`](client/src/App.tsx) with a typed API call (new `exportToLinear()` in [`client/src/lib/api.ts`](client/src/lib/api.ts)).
   - Update ticket state transitions: `ready → exported` only after backend confirms success (and optionally store returned Linear URL).
+
+#### Linear SDK notes (creating issues correctly)
+
+Use the mutation flow described in [Linear “Fetching & modifying data → Mutations”](https://linear.app/developers/sdk-fetching-and-modifying-data#mutations).
+
+- **You must provide a `teamId`**: Linear issues are always created in a team. Prefer `LINEAR_TEAM_ID` env; if you don’t have it, fetch teams once and select by key/name.
+- **Handle mutation payloads**: `createIssue(...)` returns a payload with `success` and `issue`. Check `success` and return `issue.id` and `issue.url` to the client.
+- **Descriptions are Markdown**: The `description` field is Markdown; include structured sections (“Context”, “Acceptance criteria”, etc.) to match our ticket payload.
+- **IDs**: Most optional fields require IDs (`assigneeId`, `projectId`, `labelIds`, `stateId`, etc.). In the Linear app you can use the command menu and “Copy model UUID”.
+
+Example server-side create (pseudo-code shape; adapt to our Hono handler/service):
+
+```ts
+import { LinearClient } from "@linear/sdk";
+
+const linear = new LinearClient({ apiKey: process.env.LINEAR_API_KEY! });
+
+// Option A: use env-provided team id
+const teamId = process.env.LINEAR_TEAM_ID!;
+
+// Option B (fallback): resolve team by key or name (do once / cache)
+// const teams = await linear.teams();
+// const team = teams.nodes.find(t => t.key === "ENG" || t.name === "Engineering");
+// if (!team?.id) throw new Error("Unable to resolve Linear team id");
+// const teamId = team.id;
+
+const payload = await linear.createIssue({
+  teamId,
+  title,
+  description, // Markdown
+  // optional:
+  // priority: 2,
+  // assigneeId,
+  // projectId,
+  // labelIds,
+});
+
+if (!payload.success || !payload.issue) {
+  throw new Error("Linear createIssue failed");
+}
+
+return { id: payload.issue.id, url: payload.issue.url };
+```
+
+If we need to create multiple issues or support search/selection:
+
+- **Pagination**: connections (e.g. `linear.issues()`, `linear.teams()`) return `nodes` and `pageInfo`; use `fetchNext()` or `after: endCursor` per the SDK docs.
+- **Ordering**: use the `orderBy` optional variable where supported (see Linear SDK pagination docs).
 
 ### 4) Practical transcript behavior
 
@@ -134,25 +184,6 @@ sequenceDiagram
 - **Server**: from [`server/`](server/), run `bunx tsc --noEmit`
 
 ### Run (manual end-to-end harness)
-
-- Start server (Bun/Hono) and client (Vite) in separate terminals.
-- In the browser:
-  - Start call and verify WS connects and **partial transcripts** appear quickly.
-  - Speak a few sentences and verify at least one **committed transcript** arrives.
-  - Confirm committed transcript triggers:
-    - intent detection (`POST /intent`)
-    - mockup generation (`POST /mockup`)
-  - Export a ready ticket and confirm backend creates a Linear issue (and returns an id/url), then ticket transitions to `exported`.
-
-#### Dependency install / env setup (worktree harness)
-
-- Install packages using the repo’s worktree setup step defined in [`/.cursor/worktrees.json`](../worktrees.json) (`setup-worktree`), rather than manually running installs ad-hoc.
-- `setup-worktree` currently runs:
-  - `cd client && bun install`
-  - `cd server && bun install`
-  - `cp $ROOT_WORKTREE_PATH/server/.env server/.env`
-
-#### Exact “run the servers” commands
 
 - **Terminal A (server, Bun/Hono, port 3000)**:
   - `cd server && bun run dev`
