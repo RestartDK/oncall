@@ -7,6 +7,7 @@ import {
 	generateMockup,
 	type MockupRequest,
 } from "./services/mockupGenerator";
+import { createLinearIssue } from "./services/linear";
 
 const app = new Hono();
 
@@ -26,6 +27,16 @@ const MockupRequestSchema = z.object({
 			accent: z.string().optional(),
 		})
 		.optional(),
+});
+
+const LinearIssueRequestSchema = z.object({
+	title: z.string().min(1, "Title is required"),
+	description: z.string().min(1, "Description is required"),
+	teamId: z.string().optional(),
+	assigneeId: z.string().optional(),
+	projectId: z.string().optional(),
+	labelIds: z.array(z.string()).optional(),
+	priority: z.number().optional(),
 });
 
 const route = app
@@ -148,6 +159,30 @@ const route = app
 						error instanceof Error
 							? error.message
 							: "Failed to generate mockup",
+				},
+				500
+			);
+		}
+	})
+
+	/**
+	 * POST /linear/issues
+	 * Creates a Linear issue using the Linear TypeScript SDK.
+	 * Returns the created issue ID and URL.
+	 */
+	.post("/linear/issues", zValidator("json", LinearIssueRequestSchema), async (c) => {
+		try {
+			const request = c.req.valid("json");
+			const result = await createLinearIssue(request);
+			return c.json(result);
+		} catch (error) {
+			console.error("Failed to create Linear issue:", error);
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? error.message
+							: "Failed to create Linear issue",
 				},
 				500
 			);
