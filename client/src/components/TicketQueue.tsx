@@ -2,7 +2,7 @@
  * TicketQueue component
  * 
  * Displays queued tickets with detected intents and mockup variants.
- * Allows selecting mockups and exporting to Linear via the agent.
+ * Allows selecting mockups and exporting to Linear.
  */
 
 import { Trash2, Send, Loader2, CheckCircle, Eye, Sparkles } from 'lucide-react'
@@ -37,7 +37,7 @@ export function TicketQueue({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4">
             <Sparkles className="w-12 h-12 mb-2 opacity-50" />
@@ -122,23 +122,20 @@ function TicketItem({
 
       {/* Variant selector (if mockups available) */}
       {ticket.mockupVariants.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className="text-xs text-muted-foreground">Variant:</span>
           {ticket.mockupVariants.map((variant, index) => (
-            <button
+            <Button
               key={index}
               onClick={(e) => {
                 e.stopPropagation()
                 onSelectVariant(index)
               }}
-              className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                ticket.selectedVariantIndex === index
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-muted/80'
-              }`}
+              variant={ticket.selectedVariantIndex === index ? 'default' : 'link'}
+              size="sm"
             >
               {variant.name}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -176,7 +173,7 @@ function TicketItem({
         {ticket.status === 'exported' && (
           <span className="ml-auto text-xs text-blue-500 flex items-center gap-1">
             <CheckCircle className="w-3 h-3" />
-            Sent to agent
+            Exported to Linear
           </span>
         )}
       </div>
