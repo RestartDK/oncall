@@ -69,9 +69,9 @@ export function CallPanel({
 
       {/* Status text */}
       <p className="text-center text-sm text-muted-foreground mb-4">
-        {isConnecting && 'Connecting to voice agent...'}
+        {isConnecting && 'Connecting...'}
         {isConnected && isSpeaking && 'Listening...'}
-        {isConnected && !isSpeaking && 'Agent is responding...'}
+        {isConnected && !isSpeaking && 'Ready to speak'}
         {connectionStatus === 'disconnected' && 'Ready to start call'}
         {connectionStatus === 'error' && 'Connection failed'}
       </p>

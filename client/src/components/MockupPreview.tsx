@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react'
-import { Eye, Code, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Eye, Code, Loader2 } from 'lucide-react'
 import { Button } from './ui/button'
 import type { MockupVariant } from '../types'
 
@@ -110,40 +110,20 @@ export function MockupPreview({
 
       {/* Variant selector */}
       {variants.length > 1 && (
-        <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-muted/30">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSelectVariant(currentIndex - 1)}
-            disabled={currentIndex === 0}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-
-          <div className="flex items-center gap-2">
+        <div className="px-4 py-2 border-b border-border bg-muted/30 overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch]">
+          <div className="flex items-center gap-2 flex-nowrap">
             {variants.map((variant, index) => (
-              <button
+              <Button
                 key={index}
                 onClick={() => onSelectVariant(index)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  index === currentIndex
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted hover:bg-muted/80'
-                }`}
+                variant={index === currentIndex ? 'default' : 'link'}
+                size="sm"
+                className="rounded-full shrink-0"
               >
                 {variant.name}
-              </button>
+              </Button>
             ))}
           </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSelectVariant(currentIndex + 1)}
-            disabled={currentIndex === variants.length - 1}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
         </div>
       )}
 

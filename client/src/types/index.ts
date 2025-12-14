@@ -58,6 +58,7 @@ export interface Ticket {
   selectedVariantIndex: number | null
   status: 'pending' | 'generating' | 'ready' | 'exported'
   createdAt: number
+  linearUrl?: string // URL of the created Linear issue (if exported)
 }
 
 // =============================================================================

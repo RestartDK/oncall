@@ -4,9 +4,8 @@ import { CallPanel } from './components/CallPanel'
 import { TranscriptFeed } from './components/TranscriptFeed'
 import { MockupPreview } from './components/MockupPreview'
 import { TicketQueue } from './components/TicketQueue'
-import { detectIntent, generateMockup } from './lib/api'
+import { detectIntent, generateMockup, exportToLinear } from './lib/api'
 import type { DetectedIntent, Ticket, MockupVariant } from './types'
-import './App.css'
 
 // Debounce delay for intent detection after final transcript
 const INTENT_DETECTION_DELAY_MS = 800
@@ -106,7 +105,6 @@ function App() {
     error,
     startSession,
     endSession,
-    sendContextualUpdate,
   } = useConversationTranscription({
     onFinalTranscript: handleFinalTranscript,
   })
@@ -131,38 +129,38 @@ function App() {
   }, [selectedTicketId])
 
   const handleExportTicket = useCallback(
-    (ticketId: string) => {
+    async (ticketId: string) => {
       const ticket = tickets.find((t) => t.id === ticketId)
       if (!ticket || ticket.status !== 'ready') return
 
       const selectedVariant = ticket.mockupVariants[ticket.selectedVariantIndex ?? 0]
       if (!selectedVariant) return
 
-      // Send contextual update to the agent with the ticket details
-      // The agent's Linear webhook tool will handle creating the Linear issue
-      sendContextualUpdate({
-        type: 'ticket_export',
-        ticket: {
-          title: `${ticket.intent.component}: ${ticket.intent.intent}`,
-          description: `Customer feedback from call:\n\n"${ticket.intent.transcriptText}"\n\nDetected component: ${ticket.intent.component}\nIntent: ${ticket.intent.intent}\nContext: ${ticket.intent.context || 'N/A'}`,
-          mockup: {
-            name: selectedVariant.name,
-            html: selectedVariant.html,
-            css: selectedVariant.css,
-          },
-          labels: ['client-feedback', 'ui'],
-          timestamp: ticket.createdAt,
-        },
-      })
+      try {
+        // Build the ticket description with structured sections
+        const description = `## Context\n\nCustomer feedback from call:\n\n"${ticket.intent.transcriptText}"\n\n## Details\n\n- **Component**: ${ticket.intent.component || 'N/A'}\n- **Intent**: ${ticket.intent.intent || 'N/A'}\n- **Context**: ${ticket.intent.context || 'N/A'}\n\n## Mockup\n\n**Variant**: ${selectedVariant.name}\n\n\`\`\`html\n${selectedVariant.html}\n\`\`\`\n\n\`\`\`css\n${selectedVariant.css}\n\`\`\``
 
-      // Mark ticket as exported
-      setTickets((prev) =>
-        prev.map((t) =>
-          t.id === ticketId ? { ...t, status: 'exported' } : t
+        // Create Linear issue via backend
+        const result = await exportToLinear({
+          title: `${ticket.intent.component || 'Component'}: ${ticket.intent.intent || 'UI Request'}`,
+          description,
+          labelIds: [], // Can be configured via env or UI later
+        })
+
+        // Mark ticket as exported with Linear URL
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === ticketId
+              ? { ...t, status: 'exported', linearUrl: result.url }
+              : t
+          )
         )
-      )
+      } catch (err) {
+        console.error('Failed to export ticket to Linear:', err)
+        // Optionally show error to user
+      }
     },
-    [tickets, sendContextualUpdate]
+    [tickets]
   )
 
   const handleSelectMockupVariant = useCallback(
@@ -199,7 +197,7 @@ function App() {
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-green-500" />
-              ElevenLabs Agents
+              Voice-to-Mockup
             </div>
           </div>
         </div>
@@ -209,7 +207,7 @@ function App() {
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
           {/* Left column: Call controls + Transcript */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="lg:col-span-4 flex flex-col gap-6 min-h-0">
             <CallPanel
               connectionStatus={connectionStatus}
               isSpeaking={isSpeaking}

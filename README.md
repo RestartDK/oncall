@@ -1,6 +1,18 @@
 # Oncall - Voice-to-Mockup Pipeline
 
-Real-time voice-to-UI mockup generation using ElevenLabs Agents Platform, AI SDK, and Linear integration.
+<div align="center">
+  <img src="attachments/Screenshot 2025-12-14 at 19.33.29.png" alt="Oncall Screenshot" />
+</div>
+
+An AI forward-deployed engineer that helps non-technical PMs clarify technical requirements with clients in real time.
+
+## Problem
+
+Traditional PM workflows create a disconnect between clients and the development process. Requirements are gathered in meetings, translated by PMs, and only shared with developers later—often leading to miscommunication, rework, and delayed feedback cycles. Clients are kept out of the feedback loop until it's too late to make meaningful changes.
+
+## Solution
+
+Together with @PenTest-duck, we built OnCall which is an AI forward-deployed engineer that helps non-technical PMs clarify technical requirements with clients in real time. By the end of the call, you have outlined tickets and actual mockups ready to hand off to developers. It challenges the traditional PM workflow by putting the client directly in the feedback loop from the start.
 
 ## Features
 
@@ -18,9 +30,9 @@ Browser ──────► Hono Server ──────► ElevenLabs (sign
    │                ▼
    └──────► ElevenLabs WebSocket (transcript streaming)
    │
-   ├──────► POST /api/intent ──────► AI SDK (GPT-4o-mini)
+   ├──────► POST /api/intent ──────► AI SDK (Gemini)
    │
-   ├──────► POST /api/mockup ──────► AI SDK (GPT-4o)
+   ├──────► POST /api/mockup ──────► AI SDK (Gemini)
    │
    └──────► sendContextualUpdate ──► ElevenLabs Agent ──► Linear Webhook
 ```
@@ -29,7 +41,8 @@ Browser ──────► Hono Server ──────► ElevenLabs (sign
 
 - [Bun](https://bun.sh/) runtime
 - ElevenLabs account with API key and Agent configured
-- OpenAI API key (for AI SDK)
+- Google Gemini API key (for AI SDK)
+- Linear account with API key and Team ID
 
 ## Setup
 
@@ -56,21 +69,20 @@ ELEVENLABS_API_KEY=your_api_key_here
 # Create an agent at: https://elevenlabs.io/app/conversational-ai
 ELEVENLABS_AGENT_ID=your_agent_id_here
 
-# OpenAI API Key (for AI SDK intent detection and mockup generation)
-# Get your API key from: https://platform.openai.com/api-keys
-OPENAI_API_KEY=your_openai_api_key_here
+# Google Gemini API Key (for AI SDK intent detection and mockup generation)
+# Get your API key from: https://aistudio.google.com/app/apikey
+GOOGLE_GEMINI_API_KEY=your_gemini_api_key_here
+
+# Linear API Key and Team ID (for issue creation)
+# Get your API key from: https://linear.app/settings/api
+# Get your Team ID from your Linear workspace settings
+LINEAR_API_KEY=your_linear_api_key_here
+LINEAR_TEAM_ID=your_linear_team_id_here
 ```
 
 ### 3. Configure your ElevenLabs Agent
 
-In the ElevenLabs Conversational AI dashboard:
-
-1. Create or select an Agent
-2. Add a **Webhook Tool** for Linear integration:
-   - Name: `create_linear_issue`
-   - URL: Your Linear API endpoint or webhook
-   - Configure the payload schema to accept: title, description, labels
-3. Update the agent's system prompt to understand when to use the Linear tool
+No additional configuration is needed for the ElevenLabs Agent. Simply create or select an Agent in the [ElevenLabs Conversational AI dashboard](https://elevenlabs.io/app/conversational-ai) - the agent will work out of the box with OnCall.
 
 ### 4. Start the development servers
 
@@ -137,4 +149,3 @@ Open http://localhost:5173 in your browser.
 - **Frontend**: React 19, Vite, Tailwind CSS 4, Lucide React
 - **Backend**: Bun, Hono, AI SDK, Zod
 - **Voice**: ElevenLabs Agents Platform (@elevenlabs/react)
-- **AI**: OpenAI GPT-4o / GPT-4o-mini via AI SDK
