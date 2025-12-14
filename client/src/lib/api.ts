@@ -65,3 +65,28 @@ export async function generateMockup(params: {
   
   return res.json() as Promise<MockupResult>
 }
+
+/**
+ * Creates a Linear issue from ticket data.
+ * Returns the created issue ID and URL.
+ */
+export async function exportToLinear(params: {
+  title: string
+  description: string
+  teamId?: string
+  assigneeId?: string
+  projectId?: string
+  labelIds?: string[]
+  priority?: number
+}): Promise<{ id: string; url: string }> {
+  const res = await client.linear.issues.$post({
+    json: params,
+  })
+  
+  if (!res.ok) {
+    const error = await res.json() as { error?: string }
+    throw new Error(error.error || 'Failed to export to Linear')
+  }
+  
+  return res.json() as Promise<{ id: string; url: string }>
+}
