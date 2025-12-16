@@ -41,6 +41,13 @@ const LinearIssueRequestSchema = z.object({
 
 const route = app
 	/**
+	 * GET /health
+	 * Health check endpoint for Docker and monitoring.
+	 */
+	.get("/health", async (c) => {
+		return c.json({ status: "ok" });
+	})
+	/**
 	 * GET /signed-url
 	 * Returns a short-lived signed URL for browser WebSocket connection to ElevenLabs.
 	 * The API key is never exposed to the client.

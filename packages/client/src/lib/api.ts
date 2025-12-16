@@ -1,5 +1,5 @@
 import { hc } from 'hono/client'
-import type { AppType } from '../../../server/src/index'
+import type { AppType } from '@oncall/api'
 import type { IntentResult, MockupResult } from '../types'
 
 // Hono RPC client for type-safe API calls

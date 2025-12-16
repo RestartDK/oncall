@@ -1,0 +1,46 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: oncall-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # ElevenLabs Agents Platform
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_AGENT_ID=${ELEVENLABS_AGENT_ID}
+      # Google Generative AI API Key (for AI SDK)
+      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
+      # Linear integration
+      - LINEAR_API_KEY=${LINEAR_API_KEY}
+      - LINEAR_TEAM_ID=${LINEAR_TEAM_ID}
+    expose:
+      - "3000"
+    networks:
+      - oncall-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  client:
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+    container_name: oncall-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - oncall-network
+
+networks:
+  oncall-network:
+    driver: bridge
