@@ -1,5 +1,5 @@
 import { hc } from 'hono/client'
-import type { AppType } from '../../../server/src/index'
+import type { AppType } from '@oncall/api'
 import type { IntentResult, MockupResult } from '../types'
 
 // Hono RPC client for type-safe API calls
@@ -89,4 +89,39 @@ export async function exportToLinear(params: {
   }
   
   return res.json() as Promise<{ id: string; url: string }>
+}
+
+// =============================================================================
+// Linear OAuth API Functions
+// =============================================================================
+
+/**
+ * Checks if the user is connected to Linear.
+ */
+export async function checkLinearStatus(): Promise<{ connected: boolean }> {
+  const res = await client.auth.linear.status.$get()
+  
+  if (!res.ok) {
+    throw new Error('Failed to check Linear status')
+  }
+  
+  return res.json() as Promise<{ connected: boolean }>
+}
+
+/**
+ * Initiates Linear OAuth flow by redirecting to Linear's authorization page.
+ */
+export function connectLinear(): void {
+  window.location.href = '/api/auth/linear/start'
+}
+
+/**
+ * Disconnects from Linear by clearing the session.
+ */
+export async function disconnectLinear(): Promise<void> {
+  const res = await client.auth.linear.logout.$post()
+  
+  if (!res.ok) {
+    throw new Error('Failed to disconnect from Linear')
+  }
 }

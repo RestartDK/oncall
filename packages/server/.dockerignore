@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+
+# Build artifacts
+dist
+*.log
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (passed via docker-compose)
+.env
+.env.*
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore

@@ -4,7 +4,7 @@ import { CallPanel } from './components/CallPanel'
 import { TranscriptFeed } from './components/TranscriptFeed'
 import { MockupPreview } from './components/MockupPreview'
 import { TicketQueue } from './components/TicketQueue'
-import { detectIntent, generateMockup, exportToLinear } from './lib/api'
+import { detectIntent, generateMockup, exportToLinear, checkLinearStatus, connectLinear, disconnectLinear } from './lib/api'
 import type { DetectedIntent, Ticket, MockupVariant } from './types'
 
 // Debounce delay for intent detection after final transcript
@@ -16,6 +16,10 @@ function App() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [isGeneratingMockup, setIsGeneratingMockup] = useState(false)
+  
+  // Linear OAuth state
+  const [isLinearConnected, setIsLinearConnected] = useState(false)
+  const [isCheckingLinearStatus, setIsCheckingLinearStatus] = useState(true)
 
   // Debounce timer ref
   const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -174,6 +178,47 @@ function App() {
     []
   )
 
+  // Check Linear connection status on load
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        setIsCheckingLinearStatus(true)
+        const status = await checkLinearStatus()
+        setIsLinearConnected(status.connected)
+      } catch (err) {
+        console.error('Failed to check Linear status:', err)
+        setIsLinearConnected(false)
+      } finally {
+        setIsCheckingLinearStatus(false)
+      }
+    }
+    
+    checkStatus()
+    
+    // Also check status after OAuth redirect (check for error in URL)
+    const urlParams = new URLSearchParams(window.location.search)
+    const error = urlParams.get('error')
+    if (error) {
+      console.error('Linear OAuth error:', error)
+      // Clear the error from URL
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Handle Linear connect/disconnect
+  const handleConnectLinear = useCallback(() => {
+    connectLinear()
+  }, [])
+
+  const handleDisconnectLinear = useCallback(async () => {
+    try {
+      await disconnectLinear()
+      setIsLinearConnected(false)
+    } catch (err) {
+      console.error('Failed to disconnect from Linear:', err)
+    }
+  }, [])
+
   // Clean up debounce timer on unmount
   useEffect(() => {
     return () => {
@@ -195,9 +240,34 @@ function App() {
                 Voice-to-Mockup Pipeline
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Voice-to-Mockup
+            <div className="flex items-center gap-4">
+              {/* Linear Connection Status */}
+              {!isCheckingLinearStatus && (
+                <div className="flex items-center gap-2">
+                  {isLinearConnected ? (
+                    <>
+                      <span className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                        Connected to Linear
+                      </span>
+                      <button
+                        onClick={handleDisconnectLinear}
+                        className="px-3 py-1.5 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-md transition-colors"
+                      >
+                        Disconnect
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleConnectLinear}
+                      className="px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-md transition-colors"
+                    >
+                      Connect Linear
+                    </button>
+                  )}
+                </div>
+              )}
+              
             </div>
           </div>
         </div>
@@ -246,6 +316,9 @@ function App() {
               onRemoveTicket={handleRemoveTicket}
               onExportTicket={handleExportTicket}
               onSelectMockupVariant={handleSelectMockupVariant}
+              isLinearConnected={isLinearConnected}
+              isCheckingLinearStatus={isCheckingLinearStatus}
+              onConnectLinear={handleConnectLinear}
             />
           </div>
         </div>

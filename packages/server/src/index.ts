@@ -8,6 +8,14 @@ import {
 	type MockupRequest,
 } from "./services/mockupGenerator";
 import { createLinearIssue } from "./services/linear";
+import { buildAuthorizationUrl, exchangeCodeForToken } from "./services/linearOAuth";
+import {
+	getLinearAccessToken,
+	setLinearAccessToken,
+	clearLinearAccessToken,
+	setOAuthState,
+	getAndValidateOAuthState,
+} from "./services/session";
 
 const app = new Hono();
 
@@ -40,6 +48,101 @@ const LinearIssueRequestSchema = z.object({
 });
 
 const route = app
+	/**
+	 * GET /health
+	 * Health check endpoint for Docker and monitoring.
+	 */
+	.get("/health", async (c) => {
+		return c.json({ status: "ok" });
+	})
+	/**
+	 * GET /auth/linear/start
+	 * Initiates Linear OAuth flow by redirecting to Linear's authorization page.
+	 */
+	.get("/auth/linear/start", async (c) => {
+		try {
+			// Generate a random state for CSRF protection
+			const state = crypto.randomUUID();
+			
+			// Store state in a short-lived cookie
+			setOAuthState(c, state);
+			
+			// Build authorization URL and redirect
+			const authUrl = buildAuthorizationUrl(state);
+			return c.redirect(authUrl);
+		} catch (error) {
+			console.error("Failed to start Linear OAuth:", error);
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? error.message
+							: "Failed to start Linear OAuth",
+				},
+				500
+			);
+		}
+	})
+	/**
+	 * GET /auth/linear/callback
+	 * Handles OAuth callback from Linear, exchanges code for token, and sets session.
+	 */
+	.get("/auth/linear/callback", async (c) => {
+		try {
+			const code = c.req.query("code");
+			const state = c.req.query("state");
+			const error = c.req.query("error");
+
+			// Handle OAuth errors
+			if (error) {
+				const publicOrigin = process.env.PUBLIC_ORIGIN || "http://localhost:5173";
+				return c.redirect(`${publicOrigin}/?error=${encodeURIComponent(error)}`);
+			}
+
+			// Validate required parameters
+			if (!code || !state) {
+				const publicOrigin = process.env.PUBLIC_ORIGIN || "http://localhost:5173";
+				return c.redirect(`${publicOrigin}/?error=missing_code_or_state`);
+			}
+
+			// Validate state to prevent CSRF attacks
+			if (!getAndValidateOAuthState(c, state)) {
+				const publicOrigin = process.env.PUBLIC_ORIGIN || "http://localhost:5173";
+				return c.redirect(`${publicOrigin}/?error=invalid_state`);
+			}
+
+			// Exchange authorization code for access token
+			const tokenResponse = await exchangeCodeForToken(code);
+			
+			// Store access token in session cookie
+			setLinearAccessToken(c, tokenResponse.access_token);
+
+			// Redirect back to client
+			const publicOrigin = process.env.PUBLIC_ORIGIN || "http://localhost:5173";
+			return c.redirect(`${publicOrigin}/`);
+		} catch (error) {
+			console.error("Failed to handle Linear OAuth callback:", error);
+			const publicOrigin = process.env.PUBLIC_ORIGIN || "http://localhost:5173";
+			const errorMessage = error instanceof Error ? error.message : "Failed to complete OAuth flow";
+			return c.redirect(`${publicOrigin}/?error=${encodeURIComponent(errorMessage)}`);
+		}
+	})
+	/**
+	 * GET /auth/linear/status
+	 * Returns the current Linear connection status.
+	 */
+	.get("/auth/linear/status", async (c) => {
+		const token = getLinearAccessToken(c);
+		return c.json({ connected: !!token });
+	})
+	/**
+	 * POST /auth/linear/logout
+	 * Clears the Linear session cookie.
+	 */
+	.post("/auth/linear/logout", async (c) => {
+		clearLinearAccessToken(c);
+		return c.json({ success: true });
+	})
 	/**
 	 * GET /signed-url
 	 * Returns a short-lived signed URL for browser WebSocket connection to ElevenLabs.
@@ -167,16 +270,42 @@ const route = app
 
 	/**
 	 * POST /linear/issues
-	 * Creates a Linear issue using the Linear TypeScript SDK.
+	 * Creates a Linear issue using the Linear TypeScript SDK with OAuth access token.
 	 * Returns the created issue ID and URL.
+	 * Requires OAuth authentication (OAuth-only; no API keys).
 	 */
 	.post("/linear/issues", zValidator("json", LinearIssueRequestSchema), async (c) => {
 		try {
+			// Get OAuth access token from session
+			const accessToken = getLinearAccessToken(c);
+			if (!accessToken) {
+				return c.json(
+					{
+						error: "Not connected to Linear. Please connect your Linear account first.",
+					},
+					401
+				);
+			}
+
 			const request = c.req.valid("json");
-			const result = await createLinearIssue(request);
+			const result = await createLinearIssue({
+				...request,
+				accessToken,
+			});
 			return c.json(result);
 		} catch (error) {
 			console.error("Failed to create Linear issue:", error);
+			
+			// Check if it's an authentication error
+			if (error instanceof Error && error.message.includes("OAuth access token is required")) {
+				return c.json(
+					{
+						error: "Not connected to Linear. Please connect your Linear account first.",
+					},
+					401
+				);
+			}
+
 			return c.json(
 				{
 					error:
