@@ -5,7 +5,7 @@
  * Allows selecting mockups and exporting to Linear.
  */
 
-import { Trash2, Send, Loader2, CheckCircle, Eye, Sparkles } from 'lucide-react'
+import { Trash2, Send, Loader2, CheckCircle, Eye, Sparkles, Link2 } from 'lucide-react'
 import { Button } from './ui/button'
 import type { Ticket } from '../types'
 
@@ -16,6 +16,9 @@ interface TicketQueueProps {
   onRemoveTicket: (ticketId: string) => void
   onExportTicket: (ticketId: string) => void
   onSelectMockupVariant: (ticketId: string, variantIndex: number) => void
+  isLinearConnected: boolean
+  isCheckingLinearStatus: boolean
+  onConnectLinear: () => void
 }
 
 export function TicketQueue({
@@ -25,6 +28,9 @@ export function TicketQueue({
   onRemoveTicket,
   onExportTicket,
   onSelectMockupVariant,
+  isLinearConnected,
+  isCheckingLinearStatus,
+  onConnectLinear,
 }: TicketQueueProps) {
   return (
     <div className="rounded-xl border border-border bg-card flex flex-col h-full">
@@ -57,6 +63,9 @@ export function TicketQueue({
                 onRemove={() => onRemoveTicket(ticket.id)}
                 onExport={() => onExportTicket(ticket.id)}
                 onSelectVariant={(index) => onSelectMockupVariant(ticket.id, index)}
+                isLinearConnected={isLinearConnected}
+                isCheckingLinearStatus={isCheckingLinearStatus}
+                onConnectLinear={onConnectLinear}
               />
             ))}
           </div>
@@ -73,6 +82,9 @@ interface TicketItemProps {
   onRemove: () => void
   onExport: () => void
   onSelectVariant: (index: number) => void
+  isLinearConnected: boolean
+  isCheckingLinearStatus: boolean
+  onConnectLinear: () => void
 }
 
 function TicketItem({
@@ -82,6 +94,9 @@ function TicketItem({
   onRemove,
   onExport,
   onSelectVariant,
+  isLinearConnected,
+  isCheckingLinearStatus,
+  onConnectLinear,
 }: TicketItemProps) {
   const statusConfig = {
     pending: { icon: Loader2, label: 'Pending', className: 'text-muted-foreground' },
@@ -156,18 +171,36 @@ function TicketItem({
         </Button>
 
         {ticket.status === 'ready' && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              onExport()
-            }}
-            className="gap-1 ml-auto"
-          >
-            <Send className="w-3 h-3" />
-            Export to Linear
-          </Button>
+          <>
+            {!isLinearConnected && !isCheckingLinearStatus ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onConnectLinear()
+                }}
+                className="gap-1 ml-auto"
+              >
+                <Link2 className="w-3 h-3" />
+                Connect to Export
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onExport()
+                }}
+                disabled={!isLinearConnected || isCheckingLinearStatus}
+                className="gap-1 ml-auto"
+              >
+                <Send className="w-3 h-3" />
+                Export to Linear
+              </Button>
+            )}
+          </>
         )}
 
         {ticket.status === 'exported' && (

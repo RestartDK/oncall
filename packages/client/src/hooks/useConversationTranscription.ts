@@ -76,6 +76,22 @@ export function useConversationTranscription(options: UseConversationTranscripti
       setConnectionStatus('connecting')
       setError(null)
       
+      // Request microphone permission first, then enumerate devices
+      // This clears any cached device IDs and ensures we can see available devices
+      try {
+        // Request permission with a temporary stream (this will prompt user if needed)
+        const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        
+        // Now enumerate devices - they should have proper labels now
+        await navigator.mediaDevices.enumerateDevices()
+        
+        // Stop the temporary stream - we just needed it to get permission
+        tempStream.getTracks().forEach(track => track.stop())
+      } catch (permError) {
+        // If permission is denied, we'll let the ElevenLabs SDK handle the error
+        // But we'll still try to start the session - the SDK might handle it better
+      }
+      
       // Fetch signed URL from our backend
       const signedUrl = await fetchSignedUrl()
       
@@ -85,7 +101,24 @@ export function useConversationTranscription(options: UseConversationTranscripti
       })
     } catch (err) {
       console.error('Failed to start session:', err)
-      setError(err instanceof Error ? err.message : 'Failed to start session')
+      
+      // Provide user-friendly error messages for common microphone errors
+      let errorMessage = 'Failed to start session'
+      if (err instanceof DOMException) {
+        if (err.name === 'NotFoundError' || err.message.includes('device not found')) {
+          errorMessage = 'Microphone not found. Please check your microphone is connected and try again. You may need to reset microphone permissions in your browser settings.'
+        } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMessage = 'Microphone permission denied. Please allow microphone access and try again.'
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          errorMessage = 'Microphone is in use by another application. Please close other apps using the microphone and try again.'
+        } else {
+          errorMessage = `Microphone error: ${err.message}`
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      
+      setError(errorMessage)
       setConnectionStatus('error')
     }
   }, [conversation])
