@@ -1,0 +1,23 @@
+# Local development overrides
+# This file is automatically merged when running `docker compose up` locally
+# Add to .gitignore so it doesn't affect Dokploy deployment
+
+services:
+  server:
+    container_name: oncall-server
+    networks:
+      - local-network
+
+  client:
+    container_name: oncall-client
+    ports:
+      - "80:80"
+    networks:
+      - local-network
+
+networks:
+  local-network:
+    driver: bridge
+  dokploy-network:
+    external: false
+    name: dokploy-network

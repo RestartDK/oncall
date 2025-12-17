@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: packages/server/Dockerfile
-    container_name: oncall-server
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -16,12 +15,12 @@ services:
       # Linear OAuth integration
       - LINEAR_OAUTH_CLIENT_ID=${LINEAR_OAUTH_CLIENT_ID}
       - LINEAR_OAUTH_CLIENT_SECRET=${LINEAR_OAUTH_CLIENT_SECRET}
-      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-http://localhost:5173}
+      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
       - SESSION_SECRET=${SESSION_SECRET}
     expose:
       - "3000"
     networks:
-      - oncall-network
+      - dokploy-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
@@ -33,16 +32,15 @@ services:
     build:
       context: .
       dockerfile: packages/client/Dockerfile
-    container_name: oncall-client
     restart: unless-stopped
     ports:
-      - "80:80"
+      - 80
     depends_on:
       server:
         condition: service_healthy
     networks:
-      - oncall-network
+      - dokploy-network
 
 networks:
-  oncall-network:
-    driver: bridge
+  dokploy-network:
+    external: true
