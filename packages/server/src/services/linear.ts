@@ -1,8 +1,7 @@
 /**
  * Linear service for creating issues using the Linear TypeScript SDK
  * 
- * Uses the Linear SDK to create issues directly from the backend,
- * removing the need for agent webhook tools.
+ * Uses OAuth access tokens from user sessions (OAuth-only; no API keys).
  */
 
 import { LinearClient } from "@linear/sdk";
@@ -15,6 +14,7 @@ interface CreateIssueParams {
   projectId?: string;
   labelIds?: string[];
   priority?: number;
+  accessToken: string; // OAuth access token from session
 }
 
 interface CreateIssueResult {
@@ -23,33 +23,30 @@ interface CreateIssueResult {
 }
 
 /**
- * Creates a Linear issue using the Linear TypeScript SDK.
+ * Creates a Linear issue using the Linear TypeScript SDK with OAuth access token.
  * 
- * @param params - Issue creation parameters
+ * @param params - Issue creation parameters including OAuth accessToken
  * @returns Issue ID and URL
  */
 export async function createLinearIssue(
   params: CreateIssueParams
 ): Promise<CreateIssueResult> {
-  const apiKey = process.env.LINEAR_API_KEY;
-  if (!apiKey) {
-    throw new Error("LINEAR_API_KEY environment variable is required");
+  if (!params.accessToken) {
+    throw new Error("OAuth access token is required. Please connect your Linear account.");
   }
 
-  const linear = new LinearClient({ apiKey });
+  const linear = new LinearClient({ accessToken: params.accessToken });
 
-  // Resolve team ID - prefer env, otherwise fetch teams
-  let teamId = params.teamId || process.env.LINEAR_TEAM_ID;
+  // Resolve team ID - fetch teams if not provided
+  let teamId = params.teamId;
   
   if (!teamId) {
-    // Fallback: fetch teams and select by key or name
+    // Fetch teams and select the first available team
     const teams = await linear.teams();
-    const team = teams.nodes.find(
-      (t) => t.key === "ENG" || t.name === "Engineering"
-    );
+    const team = teams.nodes[0];
     
     if (!team?.id) {
-      throw new Error("Unable to resolve Linear team ID. Set LINEAR_TEAM_ID env var or provide teamId in params.");
+      throw new Error("Unable to resolve Linear team ID. Please provide teamId in params.");
     }
     
     teamId = team.id;

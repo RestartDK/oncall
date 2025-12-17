@@ -13,9 +13,11 @@ services:
       - ELEVENLABS_AGENT_ID=${ELEVENLABS_AGENT_ID}
       # Google Generative AI API Key (for AI SDK)
       - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
-      # Linear integration
-      - LINEAR_API_KEY=${LINEAR_API_KEY}
-      - LINEAR_TEAM_ID=${LINEAR_TEAM_ID}
+      # Linear OAuth integration
+      - LINEAR_OAUTH_CLIENT_ID=${LINEAR_OAUTH_CLIENT_ID}
+      - LINEAR_OAUTH_CLIENT_SECRET=${LINEAR_OAUTH_CLIENT_SECRET}
+      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-http://localhost:5173}
+      - SESSION_SECRET=${SESSION_SECRET}
     expose:
       - "3000"
     networks:
